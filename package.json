@@ -1,0 +1,22 @@
+{
+  "name": "completeit",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "services/*", "packages/*"],
+  "scripts": {
+    "dev": "dotenv -e .env -- concurrently -n web,api,ai -c cyan,green,magenta \"npm run dev -w @completeit/web\" \"npm run dev -w @completeit/api\" \"npm run dev -w @completeit/ai\"",
+    "build": "npm run build -ws --if-present",
+    "test": "dotenv -e .env -- npm run test -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "lint": "npm run lint -ws --if-present",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "db:push": "dotenv -e .env -- npm run db:push -w @completeit/api",
+    "db:seed": "dotenv -e .env -- npm run db:seed -w @completeit/api",
+    "ai:setup": "python3 -m venv services/ai/.venv && services/ai/.venv/bin/pip install -r services/ai/requirements.txt",
+    "setup": "npm run infra:up && npm run ai:setup && npm run db:push && npm run db:seed"
+  },
+  "devDependencies": {"@playwright/test": "^1.51.0", "concurrently": "^9.1.2", "dotenv-cli":"^8.0.0"},
+  "overrides": {"decode-uri-component":"0.5.0","deepmerge-ts":"8.0.2","postcss":"8.5.26"},
+  "engines": {"node": ">=20"}
+}

@@ -1,0 +1,572 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  PRIVATE
+  FOLLOWERS
+  UNLISTED
+  PUBLIC
+}
+
+enum SetStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum SetType {
+  OFFICIAL
+  MIXED
+  COMMUNITY
+  MANUAL
+  FORK
+}
+
+enum SuggestionStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  DISCUSSING
+}
+
+enum CompatibilityStatus {
+  CONFIRMED
+  LIKELY
+  NEEDS_INFO
+  INCOMPATIBLE
+}
+
+enum NotificationType {
+  FOLLOW
+  SUGGESTION
+  COMMENT
+  RATING
+  UPDATE
+  CHECK_IN
+  MODERATION
+}
+
+model User {
+  id                String              @id @default(cuid())
+  email             String              @unique
+  username          String              @unique
+  passwordHash      String
+  emailVerifiedAt   DateTime?
+  refreshTokenHash  String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  profile           UserProfile?
+  sets              ProductSet[]
+  ratings           SetRating[]
+  suggestions       ProductSuggestion[]
+  comments          Comment[]
+  updates           SetUpdate[]
+  following         UserFollow[]        @relation("follower")
+  followers         UserFollow[]        @relation("following")
+  setFollows        ProductSetFollow[]
+  productFollows    ProductFollow[]
+  topicFollows      TopicFollow[]
+  blocks            UserBlock[]         @relation("blocker")
+  blockedBy         UserBlock[]         @relation("blocked")
+  notifications     Notification[]
+  reports           Report[]            @relation("reporter")
+  moderationActions ModerationAction[]  @relation("moderator")
+}
+
+model UserProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  displayName String
+  bio         String  @default("")
+  avatarUrl   String?
+  location    String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  category    String?
+  authorized  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId, category])
+  @@index([followingId])
+}
+
+model UserCategoryFollow {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, categoryId])
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Topic {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String        @default("")
+  follows     TopicFollow[]
+}
+
+model TopicFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  topicId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+}
+
+model ProductCategory {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  products Product[]
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  sku               String              @unique
+  name              String
+  brand             String
+  categoryId        String
+  price             Int
+  description       String              @default("")
+  widthCm           Float?
+  depthCm           Float?
+  demo              Boolean             @default(true)
+  custom            Boolean             @default(false)
+  verified          Boolean             @default(true)
+  rating            Float               @default(0)
+  ratingCount       Int                 @default(0)
+  metadata          Json                @default("{}")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  category          ProductCategory     @relation(fields: [categoryId], references: [id])
+  images            ProductImage[]
+  setItems          ProductSetItem[]
+  follows           ProductFollow[]
+  worlds            ProductWorld[]
+  compatibilityFrom CompatibilityEdge[] @relation("fromProduct")
+  compatibilityTo   CompatibilityEdge[] @relation("toProduct")
+  recommendations   Recommendation[]
+  ratings           ProductRating[]
+
+  @@index([categoryId, price])
+  @@index([brand])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  objectKey String
+  alt       String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model ProductWorld {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  productId   String
+  description String  @default("")
+  followers   Int     @default(0)
+  product     Product @relation(fields: [productId], references: [id])
+}
+
+model ImageUpload {
+  id          String            @id @default(cuid())
+  userId      String?
+  objectKey   String
+  mimeType    String
+  size        Int
+  width       Int?
+  height      Int?
+  blurred     Boolean           @default(false)
+  exifRemoved Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  sessions    AnalysisSession[]
+}
+
+model AnalysisSession {
+  id                 String           @id @default(cuid())
+  uploadId           String?
+  guestId            String?
+  sceneType          String
+  confidence         Float
+  category           String?
+  suggestedOutcomes  Json
+  missingInformation Json
+  status             String           @default("PENDING_CONFIRMATION")
+  createdAt          DateTime         @default(now())
+  upload             ImageUpload?     @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  objects            DetectedObject[]
+}
+
+model DetectedObject {
+  id         String          @id @default(cuid())
+  sessionId  String
+  label      String
+  category   String
+  brand      String?
+  model      String?
+  attributes Json
+  confidence Float
+  confirmed  Boolean         @default(false)
+  session    AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Outcome {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String        @default("")
+  templates   SetTemplate[]
+}
+
+model SetTemplate {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  name        String
+  description String
+  outcomeId   String
+  outcome     Outcome             @relation(fields: [outcomeId], references: [id])
+  slots       SetSlotDefinition[]
+  sets        ProductSet[]
+}
+
+model SetSlotDefinition {
+  id          String      @id @default(cuid())
+  templateId  String
+  name        String
+  purpose     String
+  required    Boolean
+  priority    Int
+  categories  Json
+  constraints Json        @default("{}")
+  template    SetTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, name])
+}
+
+model ComplementRule {
+  id                 String  @id @default(cuid())
+  anchorCategory     String
+  outcome            String
+  complementCategory String
+  slotName           String
+  priority           Int
+  essentiality       String
+  compatibility      Json    @default("{}")
+  exclusions         Json    @default("{}")
+  explanation        String
+  warning            String?
+}
+
+model RecommendationSession {
+  id              String           @id @default(cuid())
+  userId          String?
+  guestId         String?
+  input           Json
+  result          Json
+  createdAt       DateTime         @default(now())
+  recommendations Recommendation[]
+}
+
+model Recommendation {
+  id            String                @id @default(cuid())
+  sessionId     String
+  productId     String
+  slotName      String
+  section       String
+  explanation   String
+  essentiality  String
+  compatibility CompatibilityStatus
+  confidence    Float
+  evidence      String
+  warning       String?
+  score         Float
+  session       RecommendationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product       Product               @relation(fields: [productId], references: [id])
+}
+
+model ProductSet {
+  id                 String              @id @default(cuid())
+  ownerId            String
+  title              String
+  slug               String              @unique
+  description        String              @default("")
+  coverKey           String?
+  anchorProductId    String?
+  outcome            String
+  budget             Int
+  constraints        Json                @default("{}")
+  setType            SetType             @default(MANUAL)
+  visibility         Visibility          @default(PRIVATE)
+  status             SetStatus           @default(DRAFT)
+  totalPrice         Int                 @default(0)
+  slotScore          Float               @default(0)
+  compatibilityScore Float               @default(0)
+  valueScore         Float               @default(0)
+  communityRating    Float               @default(0)
+  outcomeSuccess     Float               @default(0)
+  usageDays          Int                 @default(0)
+  templateId         String?
+  forkedFromId       String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  template           SetTemplate?        @relation(fields: [templateId], references: [id])
+  slots              ProductSetSlot[]
+  items              ProductSetItem[]
+  followers          ProductSetFollow[]
+  forks              ProductSetFork[]    @relation("forkTarget")
+  sourceForks        ProductSetFork[]    @relation("forkSource")
+  updates            SetUpdate[]
+  ratings            SetRating[]
+  suggestions        ProductSuggestion[]
+  comments           Comment[]
+  feedEvents         FeedEvent[]
+
+  @@index([visibility, status, updatedAt])
+  @@index([ownerId, status])
+  @@index([outcome, budget])
+}
+
+model ProductSetSlot {
+  id       String     @id @default(cuid())
+  setId    String
+  name     String
+  purpose  String
+  required Boolean
+  priority Int
+  status   String     @default("MISSING")
+  set      ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, name])
+}
+
+model ProductSetItem {
+  id            String     @id @default(cuid())
+  setId         String
+  productId     String
+  slotName      String
+  owned         Boolean    @default(false)
+  selectedPrice Int
+  notes         String     @default("")
+  usageDays     Int        @default(0)
+  addedById     String?
+  attribution   String?
+  set           ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id])
+
+  @@unique([setId, productId, slotName])
+  @@index([setId, slotName])
+}
+
+model ProductSetFollow {
+  id        String     @id @default(cuid())
+  userId    String
+  setId     String
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  set       ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, setId])
+}
+
+model ProductSetFork {
+  id          String     @id @default(cuid())
+  sourceId    String
+  forkId      String
+  userId      String
+  attribution String
+  createdAt   DateTime   @default(now())
+  source      ProductSet @relation("forkSource", fields: [sourceId], references: [id])
+  fork        ProductSet @relation("forkTarget", fields: [forkId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, forkId])
+}
+
+model SetUpdate {
+  id        String     @id @default(cuid())
+  setId     String
+  authorId  String
+  kind      String
+  note      String
+  usageDays Int
+  createdAt DateTime   @default(now())
+  set       ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id])
+}
+
+model SetRating {
+  id            String     @id @default(cuid())
+  setId         String
+  userId        String
+  outcome       Int
+  value         Int
+  compatibility Int
+  usefulness    Int
+  comfort       Int
+  appearance    Int
+  durability    Int
+  usageDays     Int
+  ownsSet       Boolean
+  explanation   String
+  createdAt     DateTime   @default(now())
+  set           ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id])
+
+  @@unique([setId, userId])
+}
+
+model ProductRating {
+  id          String   @id @default(cuid())
+  productId   String
+  userId      String
+  rating      Int
+  explanation String
+  createdAt   DateTime @default(now())
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, userId])
+}
+
+model ProductSuggestion {
+  id            String           @id @default(cuid())
+  setId         String
+  authorId      String
+  type          String
+  productId     String?
+  replacementId String?
+  reason        String
+  status        SuggestionStatus @default(OPEN)
+  discussion    String           @default("")
+  createdAt     DateTime         @default(now())
+  set           ProductSet       @relation(fields: [setId], references: [id], onDelete: Cascade)
+  author        User             @relation(fields: [authorId], references: [id])
+}
+
+model Comment {
+  id        String     @id @default(cuid())
+  setId     String
+  authorId  String
+  parentId  String?
+  body      String
+  createdAt DateTime   @default(now())
+  set       ProductSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id])
+}
+
+model HelpfulVote {
+  id         String   @id @default(cuid())
+  userId     String
+  targetType String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, targetType, targetId])
+}
+
+model CompatibilityEdge {
+  id         String              @id @default(cuid())
+  fromId     String
+  toId       String
+  status     CompatibilityStatus
+  evidence   String
+  conditions Json                @default("{}")
+  warning    String?
+  from       Product             @relation("fromProduct", fields: [fromId], references: [id])
+  to         Product             @relation("toProduct", fields: [toId], references: [id])
+
+  @@unique([fromId, toId])
+}
+
+model FeedEvent {
+  id        String      @id @default(cuid())
+  actorId   String?
+  setId     String?
+  type      String
+  title     String
+  detail    String
+  metadata  Json        @default("{}")
+  createdAt DateTime    @default(now())
+  set       ProductSet? @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  metadata  Json             @default("{}")
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String
+  details    String
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("reporter", fields: [reporterId], references: [id])
+}
+
+model ModerationAction {
+  id          String   @id @default(cuid())
+  moderatorId String
+  reportId    String?
+  action      String
+  reason      String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  moderator   User     @relation("moderator", fields: [moderatorId], references: [id])
+}

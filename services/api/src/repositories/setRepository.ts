@@ -1,0 +1,7 @@
+import {prisma} from "../config/prisma.js";
+import {AppError} from "../errors/AppError.js";
+
+export const setInclude={owner:{select:{id:true,username:true,profile:true}},items:{include:{product:{include:{category:true}}}},slots:true,updates:{orderBy:{createdAt:"desc" as const}},ratings:true,suggestions:{include:{author:{select:{username:true,profile:true}}}},comments:{include:{author:{select:{username:true,profile:true}}}},followers:{select:{userId:true}}};
+export async function canViewSet(set:{ownerId:string;visibility:string},viewerId?:string){if(set.ownerId===viewerId)return true;if(set.visibility==="PUBLIC"||set.visibility==="UNLISTED")return true;if(set.visibility==="FOLLOWERS"&&viewerId){return Boolean(await prisma.userFollow.findFirst({where:{followerId:viewerId,followingId:set.ownerId,authorized:true}}));}return false;}
+export async function getVisibleSet(slug:string,viewerId?:string){const set=await prisma.productSet.findUnique({where:{slug},include:setInclude});if(!set||!await canViewSet(set,viewerId))throw new AppError(404,"Set not found","SET_NOT_FOUND");return set;}
+export async function requireSetOwner(slug:string,userId:string){const set=await prisma.productSet.findUnique({where:{slug}});if(!set)throw new AppError(404,"Set not found","SET_NOT_FOUND");if(set.ownerId!==userId)throw new AppError(403,"Only the set owner can perform this action","FORBIDDEN");return set;}

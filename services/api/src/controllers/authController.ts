@@ -1,0 +1,21 @@
+import type {RequestHandler} from "express";
+import argon2 from "argon2";
+import {login,register,rotate} from "../services/authService.js";
+import {sendLocalMail} from "../services/mailService.js";
+import {prisma} from "../config/prisma.js";
+import {env} from "../config/env.js";
+import {signEmailToken,verifyEmailToken} from "../utils/tokens.js";
+import {AppError} from "../errors/AppError.js";
+const opts={httpOnly:true,sameSite:env.COOKIE_SAME_SITE,secure:env.COOKIE_SECURE==="true",path:"/"};
+const setCookies=(res:any,s:any)=>{res.cookie("accessToken",s.accessToken,{...opts,maxAge:15*60_000});res.cookie("refreshToken",s.refreshToken,{...opts,maxAge:7*24*60*60_000});};
+const publicUser=(u:any)=>({id:u.id,email:u.email,username:u.username,emailVerifiedAt:u.emailVerifiedAt,profile:u.profile});
+async function sendVerification(user:{id:string,email:string}){const token=await signEmailToken(user,"verify");await sendLocalMail(user.email,"Verify your CompleteIt account",`Verify your email:\n\n${env.API_PUBLIC_URL}/api/v1/auth/verify-email?token=${token}\n\nIf you did not create this account, ignore this message.`);}
+export const registerController:RequestHandler=async(req,res)=>{const out=await register(req.body);setCookies(res,out.session);await sendVerification(out.user).catch(()=>undefined);res.status(201).json({user:publicUser(out.user),migratedGuestDraft:Boolean(req.body.guestDraft),mailPreviewUrl:env.MAIL_PREVIEW_URL});};
+export const loginController:RequestHandler=async(req,res)=>{const out=await login(req.body.email,req.body.password);setCookies(res,out.session);res.json({user:publicUser(out.user)});};
+export const refreshController:RequestHandler=async(req,res)=>{const out=await rotate(req.cookies?.refreshToken);setCookies(res,out.session);res.json({user:publicUser(out.user)});};
+export const logoutController:RequestHandler=async(req,res)=>{if(req.auth)await prisma.user.update({where:{id:req.auth.userId},data:{refreshTokenHash:null}});res.clearCookie("accessToken",opts);res.clearCookie("refreshToken",opts).status(204).end();};
+export const meController:RequestHandler=async(req,res)=>{const user=await prisma.user.findUnique({where:{id:req.auth!.userId},include:{profile:true}});res.json({user:publicUser(user)});};
+export const verifyEmailController:RequestHandler=async(req,res)=>{const token=String(req.query.token??"");const claims=await verifyEmailToken(token,"verify").catch(()=>{throw new AppError(400,"Verification link is invalid or expired")});await prisma.user.update({where:{id:claims.userId},data:{emailVerifiedAt:new Date()}});res.redirect(`${env.WEB_URL}/settings?verified=1`);};
+export const resendVerification:RequestHandler=async(req,res)=>{const user=await prisma.user.findUnique({where:{id:req.auth!.userId}});if(user&&!user.emailVerifiedAt)await sendVerification(user);res.json({message:"If verification is required, a new message has been sent.",mailPreviewUrl:env.MAIL_PREVIEW_URL});};
+export const requestReset:RequestHandler=async(req,res)=>{const user=await prisma.user.findUnique({where:{email:String(req.body.email).toLowerCase()}});if(user){const token=await signEmailToken(user,"reset");await sendLocalMail(user.email,"Reset your CompleteIt password",`Use this token in the password reset form:\n\n${token}\n\nIt expires in 30 minutes.`).catch(()=>undefined);}res.json({message:"If that account exists, a reset message has been sent.",mailPreviewUrl:env.MAIL_PREVIEW_URL});};
+export const confirmReset:RequestHandler=async(req,res)=>{const claims=await verifyEmailToken(req.body.token,"reset").catch(()=>{throw new AppError(400,"Reset token is invalid or expired")});await prisma.user.update({where:{id:claims.userId},data:{passwordHash:await argon2.hash(req.body.password),refreshTokenHash:null}});res.json({message:"Password changed. Log in with the new password."});};
