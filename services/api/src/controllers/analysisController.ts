@@ -82,7 +82,15 @@ export const analyze:RequestHandler=async(req,res)=>{
 export const analyzeText:RequestHandler=async(req,res)=>{
   const [outcomes,categories]=await Promise.all([prisma.outcome.findMany({select:{name:true}}),prisma.productCategory.findMany({select:{slug:true,name:true,products:{select:{name:true,brand:true}}}})]);
   const ontology=categories.map(category=>({slug:category.slug,name:category.name,aliases:category.products.flatMap(product=>[product.name,product.brand])}));
-  const response=await fetch(`${env.AI_URL}/v1/interpret`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:req.body.text,outcomes:outcomes.map(o=>o.name),categories:ontology,current_budget:req.body.currentBudget})}).catch(()=>null);
+  const requestBody=JSON.stringify({text:req.body.text,outcomes:outcomes.map(o=>o.name),categories:ontology,current_budget:req.body.currentBudget});
+  const deadline=Date.now()+45_000;
+  let response:Response|null=null;
+  for(const delay of [0,1_500,3_000,6_000,10_000,15_000]){
+    if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+    const remaining=deadline-Date.now();if(remaining<=0)break;
+    response=await fetch(`${env.AI_URL}/v1/interpret`,{method:"POST",headers:{"content-type":"application/json"},body:requestBody,signal:AbortSignal.timeout(Math.min(12_000,remaining))}).catch(()=>null);
+    if(response?.ok||response&&![502,503,504].includes(response.status))break;
+  }
   if(!response?.ok)throw new AppError(503,"The text interpreter is unavailable. Check the deployed AI service URL.","AI_UNAVAILABLE");
   const interpretation:any=await response.json();
   const known=interpretation.owned_categories.map((category:string)=>({label:categories.find(c=>c.slug===category)?.name??category,category,attributes:{source:"explicit ownership language",intent:"owned"},confidence:.9,confirmed:false}));
