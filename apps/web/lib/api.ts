@@ -1,4 +1,5 @@
-export const API=process.env.NEXT_PUBLIC_API_URL??"http://localhost:4000/api/v1";
+// Browser requests stay on the web origin; Next proxies them to the API service.
+export const API="/api/v1";
 export async function api<T=any>(path:string,init:RequestInit={}){const res=await fetch(`${API}${path}`,{...init,credentials:"include",headers:{...(init.body instanceof FormData?{}:{"Content-Type":"application/json"}),...init.headers}});if(!res.ok){const body=await res.json().catch(()=>({}));const fieldErrors=body.error?.details?.fieldErrors as Record<string,string[]>|undefined;const detail=fieldErrors&&Object.entries(fieldErrors).flatMap(([field,messages])=>messages.map(message=>`${field}: ${message}`))[0];throw new Error(detail??body.error?.message??`Request failed (${res.status})`);}return res.json() as Promise<T>}
 export const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n);
 export const timeAgo=(d:string)=>new Intl.RelativeTimeFormat("en",{numeric:"auto"}).format(-Math.max(1,Math.round((Date.now()-new Date(d).getTime())/86400000)),"day");
