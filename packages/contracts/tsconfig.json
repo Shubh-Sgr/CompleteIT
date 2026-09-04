@@ -1,1 +1,1 @@
-{"extends":"../../tsconfig.base.json","compilerOptions":{"module":"ESNext","noEmit":true},"include":["src"]}
+{"extends":"../../tsconfig.base.json","compilerOptions":{"module":"ESNext","noEmit":false,"rootDir":"src","outDir":"dist","declaration":true},"include":["src"]}
