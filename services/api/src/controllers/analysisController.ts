@@ -11,7 +11,7 @@ import {analyzeImageLocally} from "../services/localOcrService.js";
 import {analyzeImageWithVision,visionIsConfigured} from "../services/multimodalVisionService.js";
 
 const storageHost=/^https?:\/\//i.test(env.MINIO_ENDPOINT)?env.MINIO_ENDPOINT:`${env.MINIO_USE_SSL==="true"?"https":"http"}://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`;
-const minio=new S3Client({endpoint:storageHost,region:env.MINIO_REGION,forcePathStyle:env.MINIO_FORCE_PATH_STYLE==="true",credentials:{accessKeyId:env.MINIO_ACCESS_KEY,secretAccessKey:env.MINIO_SECRET_KEY}});
+const minio=new S3Client({endpoint:storageHost,region:env.MINIO_REGION,forcePathStyle:env.MINIO_FORCE_PATH_STYLE==="true",requestChecksumCalculation:"WHEN_REQUIRED",responseChecksumValidation:"WHEN_REQUIRED",credentials:{accessKeyId:env.MINIO_ACCESS_KEY,secretAccessKey:env.MINIO_SECRET_KEY}});
 const textTokens=(value:string)=>new Set(value.toLowerCase().match(/[a-z0-9]+/g)?.filter(word=>word.length>2)??[]);
 function editDistance(left:string,right:string){const row=Array.from({length:right.length+1},(_,index)=>index);for(let i=1;i<=left.length;i++){let diagonal=row[0]!;row[0]=i;for(let j=1;j<=right.length;j++){const previous=row[j]!;row[j]=Math.min(row[j]!+1,row[j-1]!+1,diagonal+(left[i-1]===right[j-1]?0:1));diagonal=previous}}return row[right.length]!}
 function tokensMatch(left:string,right:string){if(left===right)return true;if(Math.min(left.length,right.length)<3)return false;if(Math.abs(left.length-right.length)<=1&&editDistance(left,right)<=1)return true;return Math.abs(left.length-right.length)<=2&&(left.includes(right)||right.includes(left))}
@@ -39,7 +39,7 @@ export const uploadImage:RequestHandler=async(req,res)=>{
   if(!metadata||!["jpeg","png","webp"].includes(metadata.format??""))throw new AppError(415,"Only valid JPEG, PNG and WebP images are accepted");
   const clean=await sharp(req.file.buffer,{limitInputPixels:40_000_000}).rotate().resize({width:2400,height:2400,fit:"inside",withoutEnlargement:true}).jpeg({quality:88}).toBuffer({resolveWithObject:true});
   const objectKey=`uploads/${req.auth?.userId??"guest"}/${randomUUID()}.jpg`;
-  await minio.send(new PutObjectCommand({Bucket:env.MINIO_BUCKET,Key:objectKey,Body:clean.data,ContentType:"image/jpeg"}));
+  await minio.send(new PutObjectCommand({Bucket:env.MINIO_BUCKET,Key:objectKey,Body:clean.data,ContentLength:clean.data.length,ContentType:"image/jpeg"}));
   const upload=await prisma.imageUpload.create({data:{userId:req.auth?.userId,objectKey,mimeType:"image/jpeg",size:clean.data.length,width:clean.info.width,height:clean.info.height,exifRemoved:true}});
   res.status(201).json({upload,privacyWarning:"Before uploading, crop or blur faces, addresses, bills, documents, private screens and valuable possessions. In production, the sanitized image is sent to the configured vision provider for analysis."});
 };
