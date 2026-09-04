@@ -15,7 +15,16 @@ Do not deploy the development defaults for JWT, storage or email secrets.
 
 ## Portable image recognition
 
-Production image recognition is server-side and therefore independent of the visitor's device or browser. Set these only on the API service:
+Production image recognition is server-side and therefore independent of the visitor's device or browser. For a free-tier deployment, create a Google AI Studio API key and set these only on the API service:
+
+```text
+GEMINI_API_KEY=...
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+GEMINI_MODEL=gemini-2.5-flash-lite
+VISION_TIMEOUT_MS=45000
+```
+
+Alternatively, use an OpenAI-compatible vision provider:
 
 ```text
 OPENAI_API_KEY=...
@@ -28,7 +37,7 @@ The API removes EXIF metadata, rotates and bounds the image, converts it to JPEG
 
 Provider order:
 
-1. Portable multimodal recognition when `OPENAI_API_KEY` is configured.
+1. Portable Gemini recognition when `GEMINI_API_KEY` is configured, otherwise the OpenAI-compatible provider when `OPENAI_API_KEY` is configured.
 2. Apple Vision text OCR on a local macOS API host.
 3. Honest manual confirmation when neither provider succeeds.
 

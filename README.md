@@ -63,7 +63,7 @@ CompleteIt@123
 ## Main journey
 
 1. Open `/create` and describe any goal with local AI, upload a JPEG/PNG/WebP, start from a catalogue item, or enter unrestricted manual lists for “Already have” and “Want to add”. Unmatched items remain custom items.
-2. Confirm every detected item and mark it as owned or planned. A deployed server with `OPENAI_API_KEY` uses portable multimodal recognition for general objects and readable labels; local macOS development retains offline packaging OCR as a fallback. Suggestions are never confirmed until you approve them.
+2. Confirm every detected item and mark it as owned or planned. A deployed server with `GEMINI_API_KEY` or `OPENAI_API_KEY` uses portable multimodal recognition for general objects and readable labels; local macOS development retains offline packaging OCR as a fallback. Suggestions are never confirmed until you approve them.
 3. Enter your own outcome in free text or use a generic action suggestion such as complete, organize, maintain, make portable or spend less. Budget and size are optional.
 4. Review owned/missing/useful/optional/avoid audit data, evidence limits, unfilled slots and three genuinely different alternative sets.
 5. Select products and save. Signed-in users save directly; guest drafts migrate into a private PostgreSQL set after registration.
