@@ -21,7 +21,7 @@ Production image recognition is server-side and therefore independent of the vis
 GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GEMINI_MODEL=gemini-3.6-flash
-VISION_TIMEOUT_MS=45000
+VISION_TIMEOUT_MS=120000
 ```
 
 Alternatively, use an OpenAI-compatible vision provider:
@@ -30,7 +30,7 @@ Alternatively, use an OpenAI-compatible vision provider:
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://api.openai.com/v1
 VISION_MODEL=gpt-5.6-luna
-VISION_TIMEOUT_MS=45000
+VISION_TIMEOUT_MS=120000
 ```
 
 The API removes EXIF metadata, rotates and bounds the image, converts it to JPEG, and asks the configured multimodal model for strict structured output. Results include visible evidence and confidence, and always require user confirmation. The API key is never sent to the browser. The request uses `store: false`.

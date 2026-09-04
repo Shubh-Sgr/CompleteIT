@@ -13,7 +13,10 @@ const modelResult=z.object({
   missingInformation:z.array(z.string().max(160)).max(12)
 });
 
-const resultSchema={type:"object",additionalProperties:false,required:["sceneType","confidence","objects","suggestedOutcomes","missingInformation"],properties:{sceneType:{type:"string"},confidence:{type:"number",minimum:0,maximum:1},objects:{type:"array",maxItems:30,items:{type:"object",additionalProperties:false,required:["label","category","possibleBrand","possibleModel","visibleAttributes","confidence","evidence"],properties:{label:{type:"string"},category:{type:"string"},possibleBrand:{type:["string","null"]},possibleModel:{type:["string","null"]},visibleAttributes:{type:"array",items:{type:"string"}},confidence:{type:"number",minimum:0,maximum:1},evidence:{type:"string"}}}},suggestedOutcomes:{type:"array",items:{type:"string"}},missingInformation:{type:"array",items:{type:"string"}}}} as const;
+// Keep the provider schema intentionally simpler than the local validator. Gemini
+// 3.6 rejects maxItems on this nested array even though it supports the keyword
+// in less complex schemas. modelResult still enforces the 30-item safety limit.
+const resultSchema={type:"object",additionalProperties:false,required:["sceneType","confidence","objects","suggestedOutcomes","missingInformation"],properties:{sceneType:{type:"string"},confidence:{type:"number",minimum:0,maximum:1},objects:{type:"array",items:{type:"object",additionalProperties:false,required:["label","category","possibleBrand","possibleModel","visibleAttributes","confidence","evidence"],properties:{label:{type:"string"},category:{type:"string"},possibleBrand:{type:["string","null"]},possibleModel:{type:["string","null"]},visibleAttributes:{type:"array",items:{type:"string"}},confidence:{type:"number",minimum:0,maximum:1},evidence:{type:"string"}}}},suggestedOutcomes:{type:"array",items:{type:"string"}},missingInformation:{type:"array",items:{type:"string"}}}} as const;
 
 function outputText(payload:any){
   if(typeof payload?.output_text==="string")return payload.output_text;
@@ -23,6 +26,16 @@ function outputText(payload:any){
 }
 
 function slug(value:string){return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"").slice(0,80)||"uncategorized"}
+
+async function fetchGeminiWithRetry(url:string,init:RequestInit,fetchImpl:typeof fetch){
+  const retryable=new Set([429,500,502,503,504]);
+  for(let attempt=0;attempt<3;attempt+=1){
+    const response=await fetchImpl(url,init);
+    if(!retryable.has(response.status)||attempt===2)return response;
+    await new Promise(resolve=>setTimeout(resolve,400*(attempt+1)));
+  }
+  throw new Error("Gemini request failed");
+}
 
 export function parseVisionPayload(payload:unknown,categories:VisionCategory[]):VisionAnalysis{
   const text=outputText(payload);
@@ -45,7 +58,7 @@ export async function analyzeImageWithVision(image:Buffer,categories:VisionCateg
   try{
     const imageData=image.toString("base64");
     const response=geminiApiKey
-      ?await (options.fetchImpl??fetch)(`${(options.geminiBaseUrl??env.GEMINI_BASE_URL).replace(/\/$/,"")}/models/${encodeURIComponent(options.geminiModel??env.GEMINI_MODEL)}:generateContent`,{method:"POST",headers:{"x-goog-api-key":geminiApiKey,"content-type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:imageData}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:resultSchema}}),signal:controller.signal})
+      ?await fetchGeminiWithRetry(`${(options.geminiBaseUrl??env.GEMINI_BASE_URL).replace(/\/$/,"")}/models/${encodeURIComponent(options.geminiModel??env.GEMINI_MODEL)}:generateContent`,{method:"POST",headers:{"x-goog-api-key":geminiApiKey,"content-type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:imageData}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:resultSchema}}),signal:controller.signal},options.fetchImpl??fetch)
       :await (options.fetchImpl??fetch)(`${(options.baseUrl??env.OPENAI_BASE_URL).replace(/\/$/,"")}/responses`,{method:"POST",headers:{authorization:`Bearer ${openAiApiKey}`,"content-type":"application/json"},body:JSON.stringify({model:options.model??env.VISION_MODEL,store:false,max_output_tokens:2500,input:[{role:"user",content:[{type:"input_text",text:prompt},{type:"input_image",image_url:`data:image/jpeg;base64,${imageData}`,detail:"high"}]}],text:{format:{type:"json_schema",name:"completeit_image_inventory",strict:true,schema:resultSchema}}}),signal:controller.signal});
     if(!response.ok)return null;
     return parseVisionPayload(await response.json(),categories);
