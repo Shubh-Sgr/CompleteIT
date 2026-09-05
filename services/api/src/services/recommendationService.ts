@@ -57,6 +57,8 @@ export async function recommend(input:any,userId?:string,guestId?:string){
 
   for(const slot of template.slots){
     const slotCategories=Array.isArray(slot.categories)?slot.categories.filter((value:any):value is string=>typeof value==="string"):[];
+    const alreadyConfirmed=slot.source==="ai"&&reservedLabels.some(item=>likelySameItem(item,slot.name));
+    if(alreadyConfirmed){completedSlots.push({slotName:slot.name,category:slotCategories[0]??"uncategorized",source:"confirmed object"});continue;}
     const ownedCategory=slot.forceAddition?undefined:slotCategories.find((category:string)=>ownedCategories.has(category));
     if(ownedCategory){
       completedSlots.push({slotName:slot.name,category:ownedCategory,source:owned.some(product=>product.category.slug===ownedCategory)?"catalogue product":"confirmed object"});
