@@ -6,7 +6,7 @@ import {useEffect,useState} from "react";
 import {ActionLabel,ActivityIndicator,InlineFeedback,releaseActionFocus} from "@/components/action-feedback";
 import {api} from "@/lib/api";
 
-const fields=[["Display name","displayName","Aisha Khan","text"],["Username","username","aisha","text"],["Email","email","you@example.com","email"],["Password","password","At least 8 characters","password"]] as const;
+const fields=[["Display name","displayName","Your name","text"],["Username","username","choose-a-username","text"],["Email","email","you@example.com","email"],["Password","password","At least 8 characters","password"]] as const;
 
 export default function Register(){
   const router=useRouter();
