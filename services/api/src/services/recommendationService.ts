@@ -11,10 +11,10 @@ function categoriesMentioned(text:string,categories:any[]){
   return categories.map(category=>{const categoryTerms=words(`${category.slug} ${category.name}`);let score=0;if(lower.includes(category.name.toLowerCase())||lower.includes(category.slug.replaceAll("-"," ")))score+=10;else if(categoryTerms.size>1&&[...categoryTerms].every(term=>textWords.has(term)))score+=6;for(const product of category.products)if(lower.includes(product.name.toLowerCase()))score+=8;return {slug:category.slug,score}}).filter(value=>value.score>0).sort((a,b)=>b.score-a.score).slice(0,6).map(value=>value.slug);
 }
 
-function likelySameItem(left:string,right:string){
+export function likelySameItem(left:string,right:string){
   const a=normalized(left),b=normalized(right);if(!a||!b)return false;if(a===b||a.includes(b)||b.includes(a))return true;
   const aw=words(a),bw=words(b),shared=[...aw].filter(word=>bw.has(word)).length;
-  return shared>=2&&shared/Math.max(aw.size,bw.size)>=.6;
+  return shared>=2&&shared/Math.max(aw.size,bw.size)>=.8;
 }
 
 function goalFit(product:any,slot:any){
