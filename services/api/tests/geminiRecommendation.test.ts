@@ -1,0 +1,10 @@
+import {describe,expect,it,vi} from "vitest";
+import {planGoalWithGemini} from "../src/services/geminiRecommendationService.js";
+
+const plan={summary:"Add complementary tea-time items without repeating the photographed snacks.",suggestions:[{label:"Cardamom Tea",category:"food-and-grocery",reason:"Adds a drink that pairs with the existing snack selection.",priority:"ESSENTIAL"},{label:"Serving tray",category:"uncategorized",reason:"Makes the selection easier to present and share.",priority:"USEFUL"}],insights:["The owned nuts and snack mixes already provide several savoury options."]};
+const success=()=>new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(plan)}]}}]}),{status:200,headers:{"content-type":"application/json"}});
+
+describe("Gemini goal planning",()=>{
+  it("uses the exact goal and confirmed items to produce missing pieces",async()=>{const fetchImpl=vi.fn(async()=>success()) as any;const result=await planGoalWithGemini({outcome:"Prepare a snack selection for tea time",budget:1500,preference:"EITHER",ownedItems:[{label:"Roasted Almonds",category:"food-and-grocery"}],plannedItems:[],categories:[{slug:"food-and-grocery",name:"Food and Grocery",products:[{name:"Cardamom Tea",brand:"DailyGrain"}]}]},{apiKey:"test-key",model:"gemini-test",fallbackModels:[],fetchImpl});expect(result).toMatchObject({provider:"gemini-goal-planner",summary:plan.summary,suggestions:plan.suggestions});const body=JSON.parse(fetchImpl.mock.calls[0]![1].body);expect(body.contents[0].parts[0].text).toContain("Prepare a snack selection for tea time");expect(body.contents[0].parts[0].text).toContain("Roasted Almonds");});
+  it("returns null when all configured models are unavailable",async()=>{const fetchImpl=vi.fn(async()=>new Response("quota",{status:429})) as any;const result=await planGoalWithGemini({outcome:"Any custom goal",budget:0,preference:"EITHER",ownedItems:[],plannedItems:[],categories:[]},{apiKey:"test-key",model:"gemini-primary",fallbackModels:["gemini-fallback"],fetchImpl});expect(result).toBeNull();expect(fetchImpl).toHaveBeenCalledTimes(2);});
+});

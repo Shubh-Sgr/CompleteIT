@@ -11,6 +11,8 @@ export const recommendationSchema = z.object({
   outcome: z.string().min(2).max(120), budget: z.number().int().nonnegative().max(1_000_000),
   ownedProductIds: z.array(z.string()).default([]), detectedCategories: z.array(z.string()).default([]),
   desiredCategories: z.array(z.string()).default([]),
+  ownedItems: z.array(z.object({label:z.string().min(1).max(120),category:z.string().min(1).max(80)})).max(100).default([]),
+  plannedItems: z.array(z.object({label:z.string().min(1).max(120),category:z.string().min(1).max(80)})).max(100).default([]),
   widthCm: z.number().positive().optional(), depthCm: z.number().positive().optional(),
   style: z.string().max(50).optional(), preference: z.enum(["NEW", "USED", "EITHER"]).default("EITHER"),
   notes: z.string().max(1000).optional()
