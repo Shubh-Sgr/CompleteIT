@@ -24,14 +24,13 @@ function outputText(payload:any){
 
 export type GoalPlan=z.infer<typeof planResult>&{provider:"gemini-goal-planner"};
 
-const genericGoal=/\b(complete|improve|organize|finish|upgrade|protect|maintain|add to)\b.*\b(what i (already )?have|my (items|set|collection)|this (set|collection)|it)\b/i;
 const ignoredWords=new Set(["already","and","brand","collection","complete","existing","for","grocery","items","planned","set","the","thing","things","use","what","with"]);
 const significantWords=(value:string)=>new Set(value.toLowerCase().match(/[a-z0-9]+/g)?.filter(word=>word.length>2&&!ignoredWords.has(word))??[]);
 
 function isGrounded(plan:z.infer<typeof planResult>,input:{outcome:string;ownedItems:Array<{label:string;category:string;brand?:string}>}){
-  if(!genericGoal.test(input.outcome)||input.ownedItems.length===0)return true;
-  const anchors=significantWords(input.ownedItems.map(item=>`${item.label} ${item.category} ${item.brand??""}`).join(" "));
-  const response=significantWords(`${plan.summary} ${plan.insights.join(" ")} ${plan.suggestions.map(item=>`${item.label} ${item.category} ${item.reason}`).join(" ")}`);
+  if(input.ownedItems.length===0)return true;
+  const anchors=significantWords(`${input.outcome} ${input.ownedItems.map(item=>`${item.label} ${item.category} ${item.brand??""}`).join(" ")}`);
+  const response=significantWords(`${plan.summary} ${plan.suggestions.map(item=>`${item.label} ${item.category} ${item.reason}`).join(" ")}`);
   return [...anchors].some(word=>response.has(word));
 }
 
