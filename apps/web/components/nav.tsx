@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
-import {Bell,Compass,Home,Layers3,LogIn,LogOut,Moon,Plus,Search,Sun,User} from "lucide-react";
+import {Bell,ChevronDown,Compass,Home,Layers3,LogIn,LogOut,Moon,Plus,Search,Settings,Sun,User} from "lucide-react";
 import {useTheme} from "next-themes";
 import {useEffect,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
@@ -36,7 +36,20 @@ export function Nav(){
           <Link aria-label="Search anything" href="/search" className="icon-button hidden sm:grid"><Search size={19}/></Link>
           {user&&<Link aria-label={`Notifications${unreadCount?` (${unreadCount} unread)`:""}`} href="/notifications" className="icon-button relative hidden sm:grid"><Bell size={19}/>{unreadCount>0&&<span className="notification-badge">{unreadCount>99?"99+":unreadCount}</span>}</Link>}
           <button type="button" aria-label="Toggle color theme" onClick={()=>setTheme(resolvedTheme==="dark"?"light":"dark")} className="icon-button">{mounted&&resolvedTheme==="dark"?<Sun size={19}/>:<Moon size={19}/>}</button>
-          {user?<button type="button" disabled={loggingOut} onClick={logout} className="btn-secondary ml-1 !min-h-10 !px-3 text-sm"><LogOut size={17}/><span className="hidden sm:inline"><ActionLabel busy={loggingOut} busyText="Leaving…">Logout</ActionLabel></span></button>:<Link href="/login" className="btn-primary ml-1 !min-h-10 !px-4 text-sm"><LogIn size={17}/>Login</Link>}
+          {user?<details className="group relative ml-1">
+            <summary className="btn-secondary !min-h-10 cursor-pointer list-none !gap-2 !px-2.5 text-sm [&::-webkit-details-marker]:hidden">
+              <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-500 text-xs font-black text-white">{user.username[0]?.toUpperCase()}</span>
+              <span className="hidden max-w-28 truncate font-black lg:inline">Profile</span>
+              <ChevronDown className="hidden transition group-open:rotate-180 sm:block" size={14}/>
+            </summary>
+            <div className="absolute right-0 top-[calc(100%+.65rem)] z-50 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-900">
+              <div className="border-b border-slate-100 px-3 py-2.5 dark:border-slate-800"><p className="truncate text-sm font-black">@{user.username}</p><p className="mt-0.5 text-xs text-slate-500">Your CompleteIt account</p></div>
+              <Link href={`/users/${user.username}`} className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"><User size={17}/>View profile</Link>
+              <Link href="/notifications" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"><Bell size={17}/>Notifications{unreadCount>0&&<span className="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] text-white">{unreadCount>99?"99+":unreadCount}</span>}</Link>
+              <Link href="/settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"><Settings size={17}/>Settings</Link>
+              <button type="button" disabled={loggingOut} onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-950/40"><LogOut size={17}/><ActionLabel busy={loggingOut} busyText="Logging out…">Logout</ActionLabel></button>
+            </div>
+          </details>:<Link href="/login" className="btn-primary ml-1 !min-h-10 !px-4 text-sm"><LogIn size={17}/>Login</Link>}
         </div>
       </div>
     </header>
