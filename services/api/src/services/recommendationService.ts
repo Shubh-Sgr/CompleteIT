@@ -25,8 +25,8 @@ function goalFit(product:any,slot:any){
 export async function recommend(input:any,userId?:string,guestId?:string){
   const ownedProductIds=(input.ownedProductIds??[]) as string[];
   const detectedCategories=(input.detectedCategories??[]) as string[];
-  const suppliedOwned=(input.ownedItems??[]) as Array<{label:string;category:string}>;
-  const suppliedPlanned=(input.plannedItems??[]) as Array<{label:string;category:string}>;
+  const suppliedOwned=(input.ownedItems??[]) as Array<{label:string;category:string;brand?:string}>;
+  const suppliedPlanned=(input.plannedItems??[]) as Array<{label:string;category:string;brand?:string}>;
   const [owned,storedTemplate,categories]=await Promise.all([
     prisma.product.findMany({where:{id:{in:ownedProductIds}},include:{category:true}}),
     prisma.setTemplate.findFirst({where:{outcome:{name:input.outcome}},include:{outcome:true,slots:{orderBy:{priority:"asc"}}}}),
@@ -68,7 +68,8 @@ export async function recommend(input:any,userId?:string,guestId?:string){
     const spaceFit=distinct.filter(product=>!input.widthCm||!product.widthCm||product.widthCm<=input.widthCm);
     const ranked=(spaceFit.length?spaceFit:distinct).sort((a,b)=>goalFit(b,slot)-goalFit(a,slot)||b.rating-a.rating||a.price-b.price);
     const strongestFit=ranked[0]?goalFit(ranked[0],slot):0;
-    const pool=slot.source==="ai"&&strongestFit>0?ranked.filter(product=>goalFit(product,slot)===strongestFit):ranked;
+    if(slot.source==="ai"&&strongestFit<2){unfilledSlots.push({slotName:slot.name,required:slot.required,reason:slot.purpose,categories:slotCategories,source:slot.source,priority:slot.aiPriority??(slot.required?"ESSENTIAL":"USEFUL")});continue;}
+    const pool=slot.source==="ai"?ranked.filter(product=>goalFit(product,slot)===strongestFit):ranked;
     if(!pool.length){unfilledSlots.push({slotName:slot.name,required:slot.required,reason:slot.purpose,categories:slotCategories,source:slot.source??"template",priority:slot.aiPriority??(slot.required?"ESSENTIAL":"USEFUL")});continue;}
     const withinBudget=input.budget>0?pool.filter(product=>product.price<=remaining):pool;
     const choice=(withinBudget.length?withinBudget:pool)[0]!;
