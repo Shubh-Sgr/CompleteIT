@@ -15,7 +15,16 @@ Do not deploy the development defaults for JWT, storage or email secrets.
 
 ## Portable image recognition
 
-Production image recognition is server-side and therefore independent of the visitor's device or browser. For a free-tier deployment, create a Google AI Studio API key and set these only on the API service:
+Production image recognition is server-side and therefore independent of the visitor's device or browser. For a free-tier deployment, use Groq Qwen vision for photos. Set these only on the API service:
+
+```text
+GROQ_API_KEY=...
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_VISION_MODEL=qwen/qwen3.6-27b
+VISION_TIMEOUT_MS=120000
+```
+
+Keep Gemini configured for text interpretation and goal planning; it also acts as the second photo provider if Groq is temporarily unavailable:
 
 ```text
 GEMINI_API_KEY=...
@@ -27,7 +36,7 @@ GEMINI_TEXT_TIMEOUT_MS=45000
 VISION_TIMEOUT_MS=120000
 ```
 
-Alternatively, use an OpenAI-compatible vision provider:
+Optionally, add an OpenAI-compatible provider as a third photo fallback:
 
 ```text
 OPENAI_API_KEY=...
@@ -36,15 +45,17 @@ VISION_MODEL=gpt-5.6-luna
 VISION_TIMEOUT_MS=120000
 ```
 
-The API removes EXIF metadata, rotates and bounds the image, converts it to JPEG, and asks the configured multimodal model for strict structured output. Results include visible evidence and confidence, and always require user confirmation. The API key is never sent to the browser. The request uses `store: false`.
+The API removes EXIF metadata, rotates and bounds the image, converts it to JPEG, and asks the configured multimodal model for structured JSON output. Results include visible evidence and confidence, and always require user confirmation. API keys are never sent to the browser; the OpenAI-compatible request also uses `store: false`.
 
 Provider order:
 
-1. Portable Gemini recognition when `GEMINI_API_KEY` is configured, otherwise the OpenAI-compatible provider when `OPENAI_API_KEY` is configured.
-2. Apple Vision text OCR on a local macOS API host.
-3. Honest manual confirmation when neither provider succeeds.
+1. Groq Qwen vision when `GROQ_API_KEY` is configured.
+2. Gemini vision when `GEMINI_API_KEY` is configured.
+3. The OpenAI-compatible provider when `OPENAI_API_KEY` is configured.
+4. Apple Vision text OCR on a local macOS API host.
+5. Honest manual confirmation when no provider succeeds.
 
-Check `GET /health`. `imageRecognition.activeProvider` must be `multimodal-vision` on a Linux cloud host. If it says `manual-fallback`, photo upload still works but automatic recognition is not configured.
+Check `GET /health`. `imageRecognition.activeProvider` should be `groq-qwen`, `gemini`, or `openai-compatible` on a Linux cloud host. If it says `manual-fallback`, photo upload still works but automatic recognition is not configured.
 
 ## Object storage
 

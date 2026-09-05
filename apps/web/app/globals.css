@@ -1,2 +1,32 @@
-@tailwind base;@tailwind components;@tailwind utilities;
-:root{color-scheme:light;--panel:#fff;--line:#e7e9f2;--muted:#687086}html.dark{color-scheme:dark;--panel:#171b28;--line:#2d3345;--muted:#a8b0c2}*{box-sizing:border-box}body{@apply bg-paper text-ink antialiased dark:bg-[#0e111a] dark:text-slate-100}button,a,input,textarea,select{outline-offset:3px}.panel{@apply rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#171b28]}.eyebrow{@apply text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-300}.display{@apply text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-5xl}.field{@apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm dark:border-slate-700 dark:bg-slate-900}.chip{@apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold dark:border-slate-700 dark:bg-slate-900}.link{@apply font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300}.skeleton{@apply animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{color-scheme:light;--panel:#fff;--line:#e7e9f2;--muted:#687086}
+html.dark{color-scheme:dark;--panel:#171b28;--line:#2d3345;--muted:#a8b0c2}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{@apply min-h-screen bg-paper text-ink antialiased dark:bg-[#0e111a] dark:text-slate-100;background-image:radial-gradient(circle at 8% 5%,rgba(99,91,255,.09),transparent 27rem),radial-gradient(circle at 92% 18%,rgba(245,158,11,.08),transparent 23rem)}
+html.dark body{background-image:radial-gradient(circle at 8% 5%,rgba(99,91,255,.16),transparent 28rem),radial-gradient(circle at 92% 18%,rgba(245,158,11,.08),transparent 25rem)}
+::selection{background:rgba(99,91,255,.22)}
+button,a,input,textarea,select{outline-offset:3px}
+button,a{transition:transform .18s ease,color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
+button:not(:disabled):active,a:active{transform:translateY(1px) scale(.985)}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{@apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-paper dark:ring-offset-[#0e111a]}
+button:disabled{cursor:not-allowed}
+main>div,main>section{animation:page-in .38s ease-out both}
+.panel{@apply rounded-2xl border border-slate-200 bg-white/95 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-[#171b28]/95}
+.panel:is(a,button):hover{@apply -translate-y-0.5 border-indigo-300 shadow-soft dark:border-indigo-800}
+.eyebrow{@apply text-xs font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-300}
+.display{@apply text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-5xl}
+.field{@apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm transition duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:focus:border-indigo-400 dark:focus:ring-indigo-950}
+.chip{@apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold dark:border-slate-700 dark:bg-slate-900}
+.link{@apply font-semibold text-indigo-600 underline-offset-4 hover:text-indigo-500 hover:underline dark:text-indigo-300}
+.skeleton{position:relative;overflow:hidden;@apply rounded-xl bg-slate-200 dark:bg-slate-800}
+.skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:shimmer 1.45s infinite}
+html.dark .skeleton::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)}
+
+@keyframes page-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{to{transform:translateX(100%)}}
+
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
