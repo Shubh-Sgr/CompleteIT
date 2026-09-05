@@ -66,7 +66,9 @@ export async function recommend(input:any,userId?:string,guestId?:string){
     const candidates=await prisma.product.findMany({where:{custom:false,category:{slug:{in:slotCategories}},id:{notIn:[...used]}},include:{category:true},orderBy:[{rating:"desc"},{price:"asc"}],take:20});
     const distinct=candidates.filter(product=>!reservedLabels.some(item=>likelySameItem(item,product.name)));
     const spaceFit=distinct.filter(product=>!input.widthCm||!product.widthCm||product.widthCm<=input.widthCm);
-    const pool=(spaceFit.length?spaceFit:distinct).sort((a,b)=>goalFit(b,slot)-goalFit(a,slot)||b.rating-a.rating||a.price-b.price);
+    const ranked=(spaceFit.length?spaceFit:distinct).sort((a,b)=>goalFit(b,slot)-goalFit(a,slot)||b.rating-a.rating||a.price-b.price);
+    const strongestFit=ranked[0]?goalFit(ranked[0],slot):0;
+    const pool=slot.source==="ai"&&strongestFit>0?ranked.filter(product=>goalFit(product,slot)===strongestFit):ranked;
     if(!pool.length){unfilledSlots.push({slotName:slot.name,required:slot.required,reason:slot.purpose,categories:slotCategories,source:slot.source??"template",priority:slot.aiPriority??(slot.required?"ESSENTIAL":"USEFUL")});continue;}
     const withinBudget=input.budget>0?pool.filter(product=>product.price<=remaining):pool;
     const choice=(withinBudget.length?withinBudget:pool)[0]!;
