@@ -21,6 +21,9 @@ Production image recognition is server-side and therefore independent of the vis
 GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GEMINI_MODEL=gemini-3.6-flash
+GEMINI_FALLBACK_MODELS=gemini-3.1-flash-lite,gemini-3.5-flash
+GEMINI_TEXT_MODEL=gemini-3.1-flash-lite
+GEMINI_TEXT_TIMEOUT_MS=45000
 VISION_TIMEOUT_MS=120000
 ```
 

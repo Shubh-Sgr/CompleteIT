@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {env} from "../config/env.js";
+import {generateGeminiContent,geminiErrorSummary} from "./geminiService.js";
 
 export type VisionCategory={slug:string;name:string};
 export type VisionObject={label:string;category:string;brand?:string;model?:string;confidence:number;confirmed:false;attributes:{source:"multimodal-vision";evidence:string;visibleAttributes:string[]}};
@@ -27,16 +28,6 @@ function outputText(payload:any){
 
 function slug(value:string){return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"").slice(0,80)||"uncategorized"}
 
-async function fetchGeminiWithRetry(url:string,init:RequestInit,fetchImpl:typeof fetch){
-  const retryable=new Set([429,500,502,503,504]);
-  for(let attempt=0;attempt<3;attempt+=1){
-    const response=await fetchImpl(url,init);
-    if(!retryable.has(response.status)||attempt===2)return response;
-    await new Promise(resolve=>setTimeout(resolve,400*(attempt+1)));
-  }
-  throw new Error("Gemini request failed");
-}
-
 export function parseVisionPayload(payload:unknown,categories:VisionCategory[]):VisionAnalysis{
   const text=outputText(payload);
   const parsed=modelResult.parse(JSON.parse(text));
@@ -58,9 +49,9 @@ export async function analyzeImageWithVision(image:Buffer,categories:VisionCateg
   try{
     const imageData=image.toString("base64");
     const response=geminiApiKey
-      ?await fetchGeminiWithRetry(`${(options.geminiBaseUrl??env.GEMINI_BASE_URL).replace(/\/$/,"")}/models/${encodeURIComponent(options.geminiModel??env.GEMINI_MODEL)}:generateContent`,{method:"POST",headers:{"x-goog-api-key":geminiApiKey,"content-type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:imageData}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:resultSchema}}),signal:controller.signal},options.fetchImpl??fetch)
+      ?await generateGeminiContent({apiKey:geminiApiKey,baseUrl:options.geminiBaseUrl,model:options.geminiModel??env.GEMINI_MODEL,fetchImpl:options.fetchImpl,signal:controller.signal,body:{contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:imageData}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json",responseJsonSchema:resultSchema}}})
       :await (options.fetchImpl??fetch)(`${(options.baseUrl??env.OPENAI_BASE_URL).replace(/\/$/,"")}/responses`,{method:"POST",headers:{authorization:`Bearer ${openAiApiKey}`,"content-type":"application/json"},body:JSON.stringify({model:options.model??env.VISION_MODEL,store:false,max_output_tokens:2500,input:[{role:"user",content:[{type:"input_text",text:prompt},{type:"input_image",image_url:`data:image/jpeg;base64,${imageData}`,detail:"high"}]}],text:{format:{type:"json_schema",name:"completeit_image_inventory",strict:true,schema:resultSchema}}}),signal:controller.signal});
-    if(!response.ok)return null;
+    if(!response?.ok){if(geminiApiKey)console.warn(`Gemini vision unavailable (${await geminiErrorSummary(response)})`);return null}
     return parseVisionPayload(await response.json(),categories);
-  }catch{return null}finally{clearTimeout(timer)}
+  }catch(error){console.warn(`Vision analysis failed (${error instanceof Error?error.message:"invalid response"})`);return null}finally{clearTimeout(timer)}
 }

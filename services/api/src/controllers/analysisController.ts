@@ -7,6 +7,7 @@ import {AppError} from "../errors/AppError.js";
 import {recommend} from "../services/recommendationService.js";
 import {analyzeImageLocally} from "../services/localOcrService.js";
 import {analyzeImageWithVision,visionIsConfigured} from "../services/multimodalVisionService.js";
+import {analyzeTextWithGemini} from "../services/geminiTextService.js";
 import {createSignedUploadUrl,readObject,storeObject} from "../services/storageService.js";
 
 const textTokens=(value:string)=>new Set(value.toLowerCase().match(/[a-z0-9]+/g)?.filter(word=>word.length>2)??[]);
@@ -76,23 +77,26 @@ export const analyze:RequestHandler=async(req,res)=>{
 export const analyzeText:RequestHandler=async(req,res)=>{
   const [outcomes,categories]=await Promise.all([prisma.outcome.findMany({select:{name:true}}),prisma.productCategory.findMany({select:{slug:true,name:true,products:{select:{name:true,brand:true}}}})]);
   const ontology=categories.map(category=>({slug:category.slug,name:category.name,aliases:category.products.flatMap(product=>[product.name,product.brand])}));
-  const requestBody=JSON.stringify({text:req.body.text,outcomes:outcomes.map(o=>o.name),categories:ontology,current_budget:req.body.currentBudget});
-  const deadline=Date.now()+45_000;
-  let response:Response|null=null;
-  for(const delay of [0,1_500,3_000,6_000,10_000,15_000]){
-    if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
-    const remaining=deadline-Date.now();if(remaining<=0)break;
-    response=await fetch(`${env.AI_URL}/v1/interpret`,{method:"POST",headers:{"content-type":"application/json"},body:requestBody,signal:AbortSignal.timeout(Math.min(12_000,remaining))}).catch(()=>null);
-    if(response?.ok||response&&![502,503,504].includes(response.status))break;
+  let interpretation:any=await analyzeTextWithGemini({text:req.body.text,currentBudget:req.body.currentBudget,outcomes:outcomes.map(o=>o.name),categories:ontology});
+  if(!interpretation){
+    const requestBody=JSON.stringify({text:req.body.text,outcomes:outcomes.map(o=>o.name),categories:ontology,current_budget:req.body.currentBudget});
+    const deadline=Date.now()+45_000;
+    let response:Response|null=null;
+    for(const delay of [0,1_500,3_000,6_000,10_000,15_000]){
+      if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+      const remaining=deadline-Date.now();if(remaining<=0)break;
+      response=await fetch(`${env.AI_URL}/v1/interpret`,{method:"POST",headers:{"content-type":"application/json"},body:requestBody,signal:AbortSignal.timeout(Math.min(12_000,remaining))}).catch(()=>null);
+      if(response?.ok||response&&![502,503,504].includes(response.status))break;
+    }
+    if(!response?.ok)throw new AppError(503,"AI interpretation is temporarily unavailable. Please retry in a moment.","AI_UNAVAILABLE");
+    interpretation=await response.json();
   }
-  if(!response?.ok)throw new AppError(503,"The text interpreter is unavailable. Check the deployed AI service URL.","AI_UNAVAILABLE");
-  const interpretation:any=await response.json();
   const known=interpretation.owned_categories.map((category:string)=>({label:categories.find(c=>c.slug===category)?.name??category,category,attributes:{source:"explicit ownership language",intent:"owned"},confidence:.9,confirmed:false}));
   const knownDesired=(interpretation.desired_categories??[]).map((category:string)=>({label:categories.find(c=>c.slug===category)?.name??category,category,attributes:{source:"explicit requested addition",intent:"planned"},confidence:.86,confirmed:false}));
   const free=(interpretation.owned_items??[]).filter((item:string)=>!known.some((value:any)=>value.label.toLowerCase().includes(item.toLowerCase())||item.toLowerCase().includes(value.label.toLowerCase()))).map((item:string)=>({label:item.charAt(0).toUpperCase()+item.slice(1),category:item.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"uncategorized",attributes:{source:"free-form ownership language",intent:"owned"},confidence:.76,confirmed:false}));
   const freeDesired=(interpretation.desired_items??[]).filter((item:string)=>![...knownDesired,...known,...free].some((value:any)=>value.label.toLowerCase().includes(item.toLowerCase())||item.toLowerCase().includes(value.label.toLowerCase()))).map((item:string)=>({label:item.charAt(0).toUpperCase()+item.slice(1),category:item.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"uncategorized",attributes:{source:"free-form requested addition",intent:"planned"},confidence:.7,confirmed:false}));
   const session=await prisma.analysisSession.create({data:{guestId:req.header("x-guest-id")??undefined,sceneType:"text-described collection",confidence:interpretation.outcome_confidence,category:null,suggestedOutcomes:[interpretation.outcome],missingInformation:interpretation.clarifying_questions,objects:{create:[...known,...free,...knownDesired,...freeDesired]}},include:{objects:true}});
-  res.status(201).json({interpretation,session,provider:"local-text-interpreter",explanation:"The interpreter preserves custom goals and separates owned items from requested additions. Confirm its interpretation before recommendations."});
+  res.status(201).json({interpretation,session,provider:interpretation.provider??"local-text-interpreter",explanation:"The interpreter preserves custom goals and separates owned items from requested additions. Confirm its interpretation before recommendations."});
 };
 
 export const confirmObjects:RequestHandler=async(req,res)=>{const session=await prisma.analysisSession.findUnique({where:{id:String(req.params.id)}});if(!session)throw new AppError(404,"Analysis session not found");await prisma.detectedObject.deleteMany({where:{sessionId:session.id}});const objects=await Promise.all(req.body.objects.map((o:any)=>prisma.detectedObject.create({data:{sessionId:session.id,label:o.label,category:o.category,brand:o.brand,model:o.model,attributes:o.attributes??{},confidence:o.confidence??1,confirmed:true}})));await prisma.analysisSession.update({where:{id:session.id},data:{status:"CONFIRMED"}});res.json({objects,status:"CONFIRMED"});};
