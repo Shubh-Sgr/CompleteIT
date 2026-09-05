@@ -5,7 +5,8 @@
   "workspaces": ["apps/*", "services/*", "packages/*"],
   "scripts": {
     "dev": "dotenv -e .env -- concurrently -n web,api,ai -c cyan,green,magenta \"npm run dev -w @completeit/web\" \"npm run dev -w @completeit/api\" \"npm run dev -w @completeit/ai\"",
-    "build": "npm run build -ws --if-present",
+    "build": "npm run build -w @completeit/contracts && npm run build -w @completeit/web && npm run build -w @completeit/api",
+    "pretest": "npm run build -w @completeit/contracts",
     "test": "dotenv -e .env -- npm run test -ws --if-present",
     "typecheck": "npm run typecheck -ws --if-present",
     "lint": "npm run lint -ws --if-present",

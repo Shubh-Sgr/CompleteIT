@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const optionalText = (max: number) => z.preprocess(
+  value => value === null || value === "" ? undefined : value,
+  z.string().max(max).optional()
+);
+
 export const VISIBILITIES = ["PRIVATE", "FOLLOWERS", "UNLISTED", "PUBLIC"] as const;
 export const SET_STATUSES = ["DRAFT", "ACTIVE", "COMPLETED", "ARCHIVED"] as const;
 export const registerSchema = z.object({
@@ -27,9 +32,9 @@ export const createSetSchema = z.object({
   anchorProductId: z.string().optional(), templateId: z.string().optional(),
   items: z.array(z.object({ productId: z.string(), slotName: z.string(), owned: z.boolean().default(false), notes: z.string().max(500).optional() })).default([]),
   manualItems: z.array(z.object({
-    label: z.string().min(1).max(120), category: z.string().min(1).max(80).optional(), brand: z.string().max(80).optional(),
+    label: z.string().min(1).max(120), category: optionalText(80), brand: optionalText(80),
     price: z.number().int().nonnegative().max(1_000_000).default(0), slotName: z.string().max(120).default("User-provided item"),
-    owned: z.boolean().default(true), notes: z.string().max(500).optional()
+    owned: z.boolean().default(true), notes: optionalText(500)
   })).max(100).default([])
 });
 export const publishSetSchema = z.object({visibility:z.enum(VISIBILITIES)});
