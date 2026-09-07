@@ -6,6 +6,7 @@ import {useQuery} from "@tanstack/react-query";
 import {ArrowRight,Camera,Check,CheckCircle2,HeartHandshake,PackageSearch,ShieldCheck,Sparkles,WandSparkles} from "lucide-react";
 import {api} from "@/lib/api";
 import {SetCard} from "@/components/set-card";
+import {trackOnce} from "@/lib/analytics";
 
 const lifeAreas=["Travel","Food","Fitness","Learning","Home","Creative work","Hobbies","Anything else"];
 const benefits=[
@@ -17,7 +18,8 @@ const benefits=[
 export default function Home(){
   const {data}=useQuery({queryKey:["home-explore"],queryFn:()=>api<any>("/explore")});
   const [hasDraft,setHasDraft]=useState(false);
-  useEffect(()=>setHasDraft(Boolean(localStorage.getItem("completeit-guest-draft"))),[]);
+  useEffect(()=>{setHasDraft(Boolean(localStorage.getItem("completeit-guest-draft")));trackOnce("landing-view","landing_view")},[]);
+  function discardDraft(){localStorage.removeItem("completeit-guest-draft");setHasDraft(false)}
 
   return <div className="space-y-20 pb-8 sm:space-y-28">
     <section className="hero-shell min-h-[36rem] px-6 py-12 text-white sm:px-12 sm:py-16 lg:grid lg:grid-cols-[1.12fr_.88fr] lg:items-center lg:px-16">
@@ -41,7 +43,7 @@ export default function Home(){
       </div>
     </section>
 
-    {hasDraft&&<section className="panel relative overflow-hidden border-indigo-200 p-5 sm:flex sm:items-center sm:justify-between sm:p-6 dark:border-indigo-800"><div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-indigo-500 to-violet-500"/><div><p className="eyebrow">Pick up where you left off</p><h2 className="mt-2 text-xl font-black tracking-tight">Your unfinished set is saved on this device</h2><p className="mt-1 text-sm text-slate-500">Every item, goal and choice is ready when you are.</p></div><Link className="btn-primary mt-5 sm:mt-0" href="/create">Continue set <ArrowRight size={17}/></Link></section>}
+    {hasDraft&&<section className="panel relative overflow-hidden border-indigo-200 p-5 sm:flex sm:items-center sm:justify-between sm:p-6 dark:border-indigo-800"><div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-indigo-500 to-violet-500"/><div><p className="eyebrow">Pick up where you left off</p><h2 className="mt-2 text-xl font-black tracking-tight">Your unfinished set is saved on this device</h2><p className="mt-1 text-sm text-slate-500">Every item, goal and choice is ready when you are.</p></div><div className="mt-5 flex flex-wrap gap-2 sm:mt-0"><button type="button" onClick={discardDraft} className="btn-secondary">Discard draft</button><Link className="btn-primary" href="/create">Continue set <ArrowRight size={17}/></Link></div></section>}
 
     <section>
       <div className="mx-auto max-w-3xl text-center"><p className="eyebrow">Made for real life</p><h2 className="mt-4 text-4xl font-black tracking-[-.045em] sm:text-5xl">One simple flow. Any kind of goal.</h2><p className="mt-5 text-lg leading-relaxed text-slate-500">No rigid templates and no category limits. Start wherever you are.</p></div>

@@ -44,6 +44,13 @@ export const updateSetSchema = z.object({
   status:z.enum(SET_STATUSES).optional()
 }).refine(value=>Object.keys(value).length>0,"Provide at least one field to update");
 export const setItemSchema=z.object({productId:z.string().min(1),slotName:z.string().min(1).max(120),owned:z.boolean().default(false),notes:z.string().max(500).optional()});
+export const setItemProgressSchema=z.object({owned:z.boolean()});
+export const analyticsEventSchema=z.object({
+  event:z.enum(["landing_view","create_started","input_submitted","ai_result","recommendation_selected","set_saved","share_clicked","item_progress_changed","search_submitted"]),
+  anonymousId:z.string().min(8).max(80),
+  path:z.string().max(240).default("/"),
+  properties:z.record(z.union([z.string().max(240),z.number().finite(),z.boolean(),z.null()])).refine(value=>Object.keys(value).length<=20,"Too many analytics properties").default({})
+});
 export const swapSetItemSchema=z.object({itemId:z.string().min(1),replacementId:z.string().min(1)});
 export const ratingSchema=z.object({
   outcome:z.number().int().min(1).max(5),value:z.number().int().min(1).max(5),compatibility:z.number().int().min(1).max(5),

@@ -14,6 +14,7 @@
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "db:push": "dotenv -e .env -- npm run db:push -w @completeit/api",
     "db:seed": "dotenv -e .env -- npm run db:seed -w @completeit/api",
+    "analytics:report": "dotenv -e .env -- npm run analytics:report -w @completeit/api --",
     "ai:setup": "python3 -m venv services/ai/.venv && services/ai/.venv/bin/pip install -r services/ai/requirements.txt",
     "setup": "npm run infra:up && npm run ai:setup && npm run db:push && npm run db:seed"
   },

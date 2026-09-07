@@ -121,4 +121,20 @@ npx playwright test
 
 Then verify `/health` for both API and AI, create a set from text, upload a real photo, save it, publish it, log out/in, follow/unfollow, and request a password-reset email against the production URLs.
 
+## Free, first-party product analytics
+
+CompleteIt records a small allow-listed funnel (`landing_view`, creation, AI result, save, share, search and checklist progress) in the existing PostgreSQL `FeedEvent` table. It does not require Google Analytics, PostHog, cookies from an advertising vendor or another paid service. The anonymous browser identifier is a random UUID and event properties are deliberately restricted; text descriptions, photos, email addresses and search text are not recorded.
+
+Generate a 30-day funnel report locally against the configured database:
+
+```bash
+npm run analytics:report
+```
+
+Pass a different lookback period in days when needed:
+
+```bash
+npm run analytics:report -- 7
+```
+
 No application can guarantee identical availability on every hosting provider: the host must support long-running Node/Python services, PostgreSQL, outbound HTTPS for vision, and S3/SMTP connectivity. Static-only hosting can host the web frontend, but not the API or AI services.

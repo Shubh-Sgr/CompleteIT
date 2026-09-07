@@ -1,6 +1,6 @@
 {
   "name":"@completeit/api","version":"0.1.0","private":true,"type":"module",
-  "scripts":{"dev":"tsx watch src/server.ts","build":"tsc","start":"node dist/server.js","typecheck":"tsc --noEmit","test":"vitest run","db:push":"prisma db push","db:seed":"prisma db seed","db:generic":"tsx prisma/backfill-generic.ts","db:studio":"prisma studio"},
+  "scripts":{"dev":"tsx watch src/server.ts","build":"tsc","start":"node dist/server.js","typecheck":"tsc --noEmit","test":"vitest run","db:push":"prisma db push","db:seed":"prisma db seed","db:generic":"tsx prisma/backfill-generic.ts","db:studio":"prisma studio","analytics:report":"tsx scripts/analytics-report.ts"},
   "dependencies":{"@aws-sdk/client-s3":"^3.900.0","@aws-sdk/s3-request-presigner":"^3.900.0","@completeit/contracts":"*","@prisma/client":"6.12.0","argon2":"^0.41.1","cookie-parser":"^1.4.7","cors":"^2.8.5","dotenv":"^16.4.7","express":"^4.21.2","express-rate-limit":"^7.5.0","helmet":"^8.0.0","jose":"^5.10.0","multer":"^2.0.2","nodemailer":"^9.1.1","pino":"^9.6.0","pino-http":"^10.4.0","sharp":"^0.35.4","slugify":"^1.6.6","swagger-ui-express":"^5.0.1","zod":"^3.24.2"},
   "devDependencies":{"@types/cookie-parser":"^1.4.8","@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/node":"^22.13.4","@types/nodemailer":"^6.4.17","@types/supertest":"^6.0.2","@types/swagger-ui-express":"^4.1.8","prisma":"6.12.0","supertest":"^7.0.0","tsx":"^4.19.3","typescript":"^5.7.3","vitest":"^3.0.6"},
   "prisma":{"seed":"tsx prisma/seed.ts"}

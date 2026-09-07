@@ -62,6 +62,17 @@ export async function removeSetItem(slug:string,userId:string,itemId:string){
   return prisma.productSet.update({where:{id:set.id},data:{totalPrice:{decrement:item.selectedPrice}},include:setInclude});
 }
 
+export async function updateSetItemProgress(slug:string,userId:string,itemId:string,owned:boolean){
+  const set=await requireSetOwner(slug,userId);
+  const item=await prisma.productSetItem.findFirst({where:{id:itemId,setId:set.id}});
+  if(!item)throw new AppError(404,"Set item not found","SET_ITEM_NOT_FOUND");
+  await prisma.productSetItem.update({where:{id:item.id},data:{owned}});
+  const items=await prisma.productSetItem.findMany({where:{setId:set.id},select:{owned:true}});
+  const allOwned=items.length>0&&items.every(value=>value.owned);
+  await prisma.productSet.update({where:{id:set.id},data:{status:allOwned?"COMPLETED":set.status==="COMPLETED"?(set.visibility==="PRIVATE"?"DRAFT":"ACTIVE"):undefined}});
+  return prisma.productSet.findUniqueOrThrow({where:{id:set.id},include:setInclude});
+}
+
 export async function swapItem(slug:string,userId:string,itemId:string,replacementId:string){
   const set=await requireSetOwner(slug,userId);const item=await prisma.productSetItem.findFirst({where:{id:itemId,setId:set.id},include:{product:true}});const replacement=await prisma.product.findUnique({where:{id:replacementId}});if(!item||!replacement)throw new AppError(404,"Item or replacement not found");const edge=await prisma.compatibilityEdge.findFirst({where:{OR:[{fromId:set.anchorProductId??"",toId:replacement.id},{fromId:replacement.id,toId:set.anchorProductId??""}]}});const priceDifference=replacement.price-item.selectedPrice;await prisma.productSetItem.update({where:{id:item.id},data:{productId:replacement.id,selectedPrice:replacement.price,attribution:item.attribution??"Swapped by set owner"}});await prisma.productSet.update({where:{id:set.id},data:{totalPrice:{increment:priceDifference}}});return {before:item.product,after:replacement,impact:{priceDifference,compatibilityDifference:edge?.status??"NEEDS_INFO",slotCompletionDifference:0,spaceImpact:replacement.widthCm&&item.product.widthCm?replacement.widthCm-item.product.widthCm:null,communityRatingDifference:replacement.rating-item.product.rating,outcomeScoreDifference:Math.round((replacement.rating-item.product.rating)*2)}};
 }
