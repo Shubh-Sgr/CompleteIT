@@ -1,9 +1,9 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# CompleteIt frontend
 
-# This is NOT the Next.js you know
+This is a client-rendered React application built with Vite, not Next.js.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+- Register URLs explicitly in `app/router.tsx`; folders do not create routes.
+- Keep existing page components, Tailwind styles, and the `/api/v1` contract intact.
+- `lib/navigation.tsx` wraps React Router and preserves links, history, scroll options, and delayed hash targets.
+- `vite.config.ts` proxies local API requests. `vercel.json` provides the production API proxy and SPA fallback. Never expose server secrets through `VITE_*` variables.
+- Use Node 22.12+ (`nvm use` from the repository root), then run typechecking, build, and desktop/mobile regression tests for routing changes.

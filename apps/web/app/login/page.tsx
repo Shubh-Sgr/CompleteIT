@@ -1,7 +1,5 @@
-"use client";
-
-import Link from "next/link";
-import {useRouter} from "next/navigation";
+import Link from "@/lib/navigation";
+import {useRouter} from "@/lib/navigation";
 import {useState} from "react";
 import {Eye,EyeOff,LockKeyhole,Mail} from "lucide-react";
 import {ActionLabel,ActivityIndicator,InlineFeedback,releaseActionFocus} from "@/components/action-feedback";

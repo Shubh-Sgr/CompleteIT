@@ -4,13 +4,8 @@
     "allowJs": false,
     "noEmit": true,
     "module": "ESNext",
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
     "paths": {
       "@/*": [
         "./*"
@@ -19,12 +14,9 @@
     "isolatedModules": true
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
+    "app", "components", "lib", "main.tsx", "vite.config.ts", "tailwind.config.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules", "dist"
   ]
 }

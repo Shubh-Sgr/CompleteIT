@@ -1,6 +1,6 @@
 # CompleteIt code flow guide
 
-This guide explains how CompleteIt works without assuming that you already know Next.js, Express, Prisma, React Query, or FastAPI. Read the first four sections for the big picture, then use the journey sections when you need to change or debug a feature.
+This guide explains how CompleteIt works without assuming that you already know React, Vite, Express, Prisma, React Query, or FastAPI. Read the first four sections for the big picture, then use the journey sections when you need to change or debug a feature.
 
 ## 1. The application in one picture
 
@@ -9,9 +9,9 @@ Visitor's browser
     |
     | Opens pages and sends /api/v1 requests
     v
-Next.js frontend (apps/web, normally port 3000)
+React frontend (apps/web, Vite locally on port 3000)
     |
-    | Proxies /api/v1/* to the API
+    | Same-origin /api/v1/* proxy (Vite locally, Vercel in production)
     v
 Express API (services/api, normally port 4000)
     |                 |                    |
@@ -43,7 +43,7 @@ The browser never receives database credentials, storage secrets, JWT signing se
 
 ## 3. The frontend: `apps/web`
 
-The frontend uses the Next.js App Router. A folder inside `apps/web/app` becomes a URL:
+The frontend uses React 19, Vite for development/builds, and React Router for navigation. `index.html` loads `main.tsx`, which mounts the providers and `app/router.tsx`. That router explicitly maps URLs to the existing React page components:
 
 | File | Browser URL |
 |---|---|
@@ -55,11 +55,11 @@ The frontend uses the Next.js App Router. A folder inside `apps/web/app` becomes
 | `app/sets/[slug]/page.tsx` | `/sets/some-set-name` |
 | `app/users/[username]/page.tsx` | `/users/aisha` |
 
-`[slug]` and `[username]` are dynamic values. For example, visiting `/sets/my-travel-kit` causes `app/sets/[slug]/page.tsx` to receive `my-travel-kit` as the slug.
+The bracketed folder names are retained to avoid moving all the existing code; they no longer create routes automatically. React Router's `/sets/:slug` and `/users/:username` routes provide dynamic values through `useParams`. For example, `/sets/my-travel-kit` gives the set page a slug of `my-travel-kit`. Register every new URL in `app/router.tsx`.
 
-### Client components
+### Browser-side React components
 
-Files beginning with `"use client"` can use browser features such as:
+All pages now run in the browser without Next.js or `"use client"` directives. They can use:
 
 - `useState` for values that change on screen.
 - `useEffect` for work performed after a page opens.
@@ -67,7 +67,7 @@ Files beginning with `"use client"` can use browser features such as:
 - Click and form-submit handlers.
 - React Query for loading and refreshing API data.
 
-Most CompleteIt pages are client components because they contain interactive forms.
+Page code is lazy-loaded with React `Suspense`, using the existing loading UI. The router also wraps pages in an error boundary. `app/layout.tsx` retains the navigation and page spacing; `index.html` owns the title, description, and manifest link. `next-themes` is a standalone React theme library (it does not require Next.js), retained to preserve existing theme preferences.
 
 ### Calling the API
 
@@ -82,7 +82,9 @@ await api("/sets", {
 
 The helper adds `/api/v1`, includes the authentication cookies, parses JSON, and converts backend validation errors into readable messages.
 
-`apps/web/next.config.ts` proxies these requests to the Express API. This means browser code can use `/api/v1/sets` in local development and production without knowing the API host directly.
+`apps/web/vite.config.ts` proxies these requests during local development and build preview. On Vercel, `apps/web/vercel.json` forwards `/api/v1/*` to the existing Render API before falling back to `index.html` for frontend routes. The browser still uses `/api/v1/sets` and HttpOnly cookies. On another static host, configure equivalent proxy and SPA fallback rules; Vite's development proxy is not bundled into static output.
+
+`lib/navigation.tsx` adapts the existing `href` links and imperative navigation calls to React Router. It retains filter navigation without scrolling and waits for asynchronous notification targets before scrolling to a comment or suggestion. Logout clears the client query cache so a later login does not reuse another user's cached data.
 
 ### Loading and refreshing data
 
@@ -461,4 +463,3 @@ The API integration tests require local loopback-port access. The Playwright sui
 - **Slug**: A readable identifier used in a URL.
 - **Fallback**: A safer alternative used when the preferred service fails.
 - **E2E test**: A browser test that exercises the application like a visitor.
-

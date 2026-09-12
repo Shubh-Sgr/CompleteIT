@@ -1,17 +1,28 @@
 # CompleteIt production deployment
 
-CompleteIt is portable across desktop and mobile browsers because all recognition and business logic run on the server. A production installation needs four deployable services: the Next.js web app, Express API, FastAPI interpreter and PostgreSQL, plus S3-compatible object storage and SMTP. Redis is optional with the current code.
+CompleteIt is portable across desktop and mobile browsers because all recognition and business logic run on the server. A production installation needs the static React web app, Express API, FastAPI interpreter and PostgreSQL, plus S3-compatible object storage and SMTP. Redis is optional with the current code. The frontend no longer requires a Next.js server.
 
 ## Required topology
 
 | Component | Start command | Required backing service |
 |---|---|---|
-| Web | `npm run build -w @completeit/web` then `npm run start -w @completeit/web` | Public API URL at build time |
+| Web | `npm run build -w @completeit/web`; serve `apps/web/dist` on a static host | Same-origin API proxy and SPA fallback configured on the host |
 | API | `npm run build -w @completeit/api` then `npm run start -w @completeit/api` | PostgreSQL, S3-compatible storage, SMTP, AI service |
 | AI | `pip install -r services/ai/requirements.txt` then `uvicorn app.main:app --host 0.0.0.0 --port $PORT` from `services/ai` | None for text interpretation |
 | Database | Managed PostgreSQL 16+ | `pgvector` extension is included by the local image but is not currently required by the active ranking path |
 
 Do not deploy the development defaults for JWT, storage or email secrets.
+
+## React frontend on the existing Vercel project
+
+No new service or paid dependency is required for this migration. Keep the existing domain and Render/Neon/storage services.
+
+1. Use **Root Directory: `apps/web`**, **Node.js: 22.x**, **Framework Preset: Vite**, **Build Command: `npm run build`**, and **Output Directory: `dist`**. The checked-in `apps/web/vercel.json` declares the framework/build/output values; remove any conflicting dashboard overrides from the former Next.js setup.
+2. Deploy the migrated commit. The config proxies `/api/v1/*` to `https://completeit-api.onrender.com/api/v1/*`, and sends frontend deep links to `index.html`. If your API hostname changes, update that first rewrite too; a Vite environment variable cannot alter a static host's routing rules.
+3. Keep API secrets on the API service only. Do not copy database, JWT, storage, Groq, or Gemini keys into any `VITE_*` variable.
+4. Verify direct visits and refreshes at `/create`, `/my-sets/private`, and an existing `/sets/<slug>` URL; then test login, save, upload, notifications, and logout through the deployed frontend.
+
+`npm run start -w @completeit/web` previews the production bundle locally at port 3000. It is not a production server. A different static host needs equivalent `/api/v1` reverse-proxy rules **before** the SPA fallback; otherwise API requests or login cookies can break. The static frontend does not server-render page content: the initial HTML contains metadata and a React mount point. This differs from Next.js pre-rendering for crawlers/no-JavaScript visitors, although the interactive UI is preserved.
 
 ## Portable image recognition
 
@@ -77,8 +88,8 @@ For AWS S3 use its HTTPS endpoint, real AWS region and `MINIO_FORCE_PATH_STYLE=f
 ## Web, API and cookies
 
 ```text
-# Web service
-NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
+# Local Vite development/preview proxy (production routing is in vercel.json)
+API_PROXY_ORIGIN=http://localhost:4000
 
 # API service
 WEB_URL=https://app.example.com
@@ -89,7 +100,7 @@ COOKIE_SECURE=true
 COOKIE_SAME_SITE=lax
 ```
 
-Prefer `app.example.com` and `api.example.com`; they are same-site and work with `COOKIE_SAME_SITE=lax`. If the frontend and API are hosted on unrelated domains, use `COOKIE_SAME_SITE=none` with `COOKIE_SECURE=true`. Add every permitted frontend origin to `WEB_URLS`; do not use a wildcard with credentialed requests.
+The browser calls the frontend origin's `/api/v1` path, so the host proxy preserves same-origin cookies even when the backend uses a Render hostname. Keep `COOKIE_SECURE=true` in HTTPS production, and retain the existing cookie settings. Add every permitted frontend origin to `WEB_URLS`; do not use a wildcard with credentialed requests. `NEXT_PUBLIC_API_URL` is still accepted as a legacy local proxy setting, but is not exposed in the React bundle. Do not bypass the proxy with direct cross-origin browser requests.
 
 ## Database and email
 

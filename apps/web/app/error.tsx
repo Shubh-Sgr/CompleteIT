@@ -1,5 +1,3 @@
-"use client";
-
 import {useEffect} from "react";
 import {CircleAlert,RefreshCw} from "lucide-react";
 

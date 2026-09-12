@@ -6,7 +6,7 @@ CompleteIt is a local-first, category-neutral collection builder. A guest can de
 
 ## What is included
 
-- Next.js 16 App Router PWA with strict TypeScript, Tailwind, TanStack Query, responsive mobile navigation, accessibility labels and light/dark themes.
+- React 19 frontend with Vite, React Router, strict TypeScript, Tailwind, TanStack Query, a web app manifest, responsive mobile navigation, accessibility labels and light/dark themes.
 - Express API with route/controller/service/repository boundaries, Zod validation, Prisma/PostgreSQL, Argon2, rotated HttpOnly refresh cookies, Helmet, explicit CORS, rate limiting, Pino logs and Swagger.
 - FastAPI service with a database-ontology-driven text interpreter, plus API-side portable multimodal object/label recognition, optional offline macOS OCR fallback and caller-supplied completion slots.
 - PostgreSQL + pgvector image, Redis, MinIO and Mailpit containers.
@@ -16,12 +16,12 @@ CompleteIt is a local-first, category-neutral collection builder. A guest can de
 
 ## Requirements
 
-- Node.js 20 LTS or Node.js 22+
+- Node.js 22.12+ (Node 22 recommended; `.nvmrc` selects it)
 - npm 10+
 - Python 3.11+
 - Docker Desktop, Podman Compose, or another Docker Compose-compatible runtime
 
-Node 21 can run the app but some development dependencies warn because it is a non-LTS release. Node 22 is recommended.
+Run `nvm use` if you use nvm. Node 21 is not supported by the frontend build tools.
 
 ## Exact local startup
 
@@ -29,6 +29,7 @@ From this repository root:
 
 ```bash
 cp .env.example .env
+nvm use # if you use nvm
 npm install
 npm run setup
 npm run dev
@@ -76,12 +77,15 @@ For the photo path, keep items mostly in frame, upload the image, and review eve
 
 With infrastructure running and `.env` present:
 
+Start the local API/AI with `npm run dev` first. For the dedicated browser-test port, include `http://localhost:3100` in `WEB_URLS` (as in `.env.example`), or start with `WEB_URLS=http://localhost:3000,http://localhost:3100 npm run dev`. Tests use the local seeded database, not production. Playwright starts its own frontend on port 3100 so it cannot accidentally test an old server.
+
 ```bash
 npm run typecheck
 npm run test
 npm run build
 npx playwright install chromium
 npx playwright test
+E2E_PREVIEW=1 npx playwright test # check the production React bundle too
 npm audit --omit=dev
 ```
 
@@ -90,7 +94,7 @@ The API integration suite uses the seeded database and MinIO. Tests add temporar
 ## Repository map
 
 ```text
-apps/web             Next.js PWA
+apps/web             React + Vite frontend (explicit React Router routes)
 services/api         Express/Prisma API and Supertest suite
 services/ai          FastAPI mock/local-provider boundary and Pytest suite
 packages/contracts   Shared Zod contracts
